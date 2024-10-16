@@ -106,7 +106,12 @@ merged <- merge(demographic_cleaned, accel, by = "seqn")
 ```
 
 ```{r}
+gender_education_table <- merged |>
+  group_by(education, sex) |>
+  summarise(Count = n()) |>
+  ungroup()
 
+gender_education_table
 ```
 
 
