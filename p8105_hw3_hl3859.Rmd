@@ -86,3 +86,31 @@ ggplot(snowfall_dist, aes(x = year, y = avg_snow)) +
 ```
 
 
+# Problem 2
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+
+demographic <- read.csv("nhanes_covar.csv", skip = 4) |>
+  janitor::clean_names()
+
+accel <- read.csv("nhanes_accel.csv") |>
+  janitor::clean_names()
+
+demographic_cleaned <- demographic |>
+  filter(age >= 21) |>
+  drop_na()
+
+merged <- merge(demographic_cleaned, accel, by = "seqn")
+```
+
+```{r}
+
+```
+
+
+
+
+
+
