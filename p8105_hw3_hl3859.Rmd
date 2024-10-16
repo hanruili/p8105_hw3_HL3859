@@ -93,7 +93,11 @@ library(tidyverse)
 library(ggplot2)
 
 demographic <- read.csv("nhanes_covar.csv", skip = 4) |>
-  janitor::clean_names()
+  janitor::clean_names() |>
+  mutate(sex = recode(sex, `1` = "male", `2` = "female"),
+         education = recode(education, `1` = "Less than high school", 
+                            `2` = "High school equivalent", 
+                            `3` = "More than high school"))
 
 accel <- read.csv("nhanes_accel.csv") |>
   janitor::clean_names()
@@ -111,7 +115,15 @@ gender_education_table <- merged |>
   summarise(Count = n()) |>
   ungroup()
 
-gender_education_table
+knitr::kable(gender_education_table)
+
+ggplot(merged, aes(x = age, fill = sex)) +
+  geom_density(alpha = 0.5) +
+  facet_wrap(~ education) +
+  labs(title = "Age Distribution by Sex and Education Level",
+       x = "Age",
+       y = "Density") +
+  theme_minimal()
 ```
 
 
