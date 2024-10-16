@@ -1,0 +1,40 @@
+---
+title: "p8105_hw3_hl3859"
+author: "Hanrui Li"
+date: "2024-10-16"
+output: github_document
+---
+
+# Problem 1
+
+```{r}
+library(tidyverse)
+library(p8105.datasets)
+
+data("ny_noaa")
+
+ny_noaa_cleaned <- ny_noaa %>%
+  mutate(
+    year = lubridate::year(date),
+    month = lubridate::month(date),
+    day = lubridate::day(date),
+    tmax = as.numeric(tmax) / 10,   # Convert temperature from tenths of degrees C to degrees C
+    tmin = as.numeric(tmin) / 10,   # Convert temperature from tenths of degrees C to degrees C
+    prcp = as.numeric(prcp) / 10    # Convert precipitation from tenths of mm to mm
+  )
+
+snowfall_values <- ny_noaa_cleaned %>%
+  count(snow) %>%
+  arrange(desc(n)) %>%
+  head(10)
+
+print(snowfall_values)
+```
+
+
+
+
+
+
+
+
