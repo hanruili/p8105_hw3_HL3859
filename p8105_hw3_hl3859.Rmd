@@ -7,7 +7,7 @@ output: github_document
 
 # Problem 1
 
-```{r}
+```{r message=FALSE}
 library(tidyverse)
 library(p8105.datasets)
 
@@ -28,12 +28,12 @@ snowfall_values <- ny_noaa_cleaned |>
   arrange(desc(n)) |>
   head(10)
 
-print(snowfall_values)
+snowfall_values
 ```
 
 The most common values for snowfall typically include 0, as most days may not experience snow, particularly in non-winter months or in locations where snowfall is rare.
 
-```{r}
+```{r message=FALSE}
 jan_jul_data <- ny_noaa_cleaned |>
   filter(month %in% c(1, 7)) |>
   group_by(id, year, month) |>
@@ -57,7 +57,7 @@ July: A few years have notably lower maximum temperatures, likely representing c
 
 ## (i)
 
-```{r}
+```{r message=FALSE, warning=FALSE}
 ggplot(ny_noaa_cleaned, aes(x = tmin, y = tmax)) +
   geom_bin2d() + 
   scale_fill_viridis_c() +
@@ -88,6 +88,8 @@ ggplot(snowfall_dist, aes(x = year, y = avg_snow)) +
 
 # Problem 2
 
+## Load, tidy, merge, and otherwise organize the data sets
+
 ```{r}
 library(tidyverse)
 library(ggplot2)
@@ -109,14 +111,28 @@ demographic_cleaned <- demographic |>
 merged <- merge(demographic_cleaned, accel, by = "seqn")
 ```
 
-```{r}
+## Produce a reader-friendly table for the number of men and women in each education category
+
+```{r message=FALSE}
 gender_education_table <- merged |>
   group_by(education, sex) |>
   summarise(Count = n()) |>
   ungroup()
 
 knitr::kable(gender_education_table)
+```
 
+Less than high school: The number of participants is nearly balanced between males (27) and females (28).
+
+High school equivalent: There is a slight gender imbalance with more males (35) than females (23).
+
+More than high school: Both males (56) and females (59) are well represented, showing a fairly even distribution across genders.
+
+In general, participants with "More than high school" education make up the largest group, followed by "High school equivalent," with "Less than high school" having the fewest participants. This reflects the general trend of higher educational attainment among the participants.
+
+## Create a visualization of the age distributions for men and women in each education category
+
+```{r}
 ggplot(merged, aes(x = age, fill = sex)) +
   geom_density(alpha = 0.5) +
   facet_wrap(~ education) +
@@ -125,6 +141,31 @@ ggplot(merged, aes(x = age, fill = sex)) +
        y = "Density") +
   theme_minimal()
 ```
+
+High school equivalent: Males and females show a similar age distribution, with a large concentration of participants between 40 and 60 years. There's a small divergence in older ages, with slightly more males in their early 40s and late 50s.
+
+Less than high school: The age distribution skews older for both males and females. The peak for females is around 70 years, while for males, it's slightly lower, around 60. This could indicate that older participants tend to have lower education levels.
+
+More than high school: Participants are more evenly distributed across age groups for both genders, with more participants in their 50s and 60s. Females tend to dominate the older age group (70+), while males are more evenly spread across age ranges.
+
+Males tend to have a slightly wider spread across age groups in all education levels, while females tend to peak more sharply in specific age ranges, particularly among the less educated. As education level increases, the age distribution becomes broader, indicating that participants with higher education levels are more evenly distributed across various age groups. Conversely, those with lower education levels tend to be older. This may suggest that older generations had less access to education compared to younger participants.
+
+## Create a total activity variable for each participant
+
+```{r message=FALSE}
+merged$total_activity <- rowSums(merged[, grep("MIMS", colnames(merged))])
+
+ggplot(merged, aes(x = age, y = total_activity, color = sex)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = FALSE) +
+  facet_wrap(~ education) +
+  labs(title = "Total Activity vs Age by Gender and Education Level",
+       x = "Age",
+       y = "Total Activity (MIMS)") +
+  theme_minimal()
+
+```
+
 
 
 
