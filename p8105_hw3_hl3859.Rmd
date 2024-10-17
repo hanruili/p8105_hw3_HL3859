@@ -7,12 +7,34 @@ output: github_document
 
 # Problem 1
 
+### Import the dataset
+
 ```{r message=FALSE}
 library(tidyverse)
 library(p8105.datasets)
 
 data("ny_noaa")
+```
 
+The `ny_noaa` has `r nrow(ny_noaa)` observations and `r ncol(ny_noaa)` variables.
+
+- `date`: Observation date (e.g., `r ny_noaa$date[1]`)
+
+- `prcp`: Precipitation (tenths of mm)
+
+- `snow`: Snowfall (mm)
+
+- `snwd`: Snow depth (mm)
+
+- `tmax`: Maximum temperature (tenths of degree Celsius)
+
+- `tmin`: Maximum and minimum temperature (tenths of degree Celsius)
+
+There are `r sum(is.na(ny_noaa))` missing values.
+
+### Clean the dataset
+
+```{r}
 ny_noaa_cleaned <- ny_noaa |>
   mutate(
     year = lubridate::year(date),
@@ -23,39 +45,40 @@ ny_noaa_cleaned <- ny_noaa |>
     prcp = as.numeric(prcp) / 10
   )
 
-snowfall_values <- ny_noaa_cleaned |>
+ny_noaa_cleaned |>
   count(snow) |>
+  drop_na(snow) |>
   arrange(desc(n)) |>
-  head(10)
-
-snowfall_values
+  head(10) |>
+  knitr::kable()
 ```
 
-The most common values for snowfall typically include 0, as most days may not experience snow, particularly in non-winter months or in locations where snowfall is rare.
+The most common values for snowfall typically include 0 (2008508 observations), 25 (31022 observations), and 13 (23095 observations), as most days may not experience snow, particularly in non-winter months or in locations where snowfall is rare.
 
-```{r message=FALSE}
-jan_jul_data <- ny_noaa_cleaned |>
+### Show the average max temperature in January and in July in each station across years
+
+```{r message=FALSE, warning=FALSE}
+ny_noaa_cleaned |>
   filter(month %in% c(1, 7)) |>
-  group_by(id, year, month) |>
-  summarize(avg_tmax = mean(tmax, na.rm = TRUE)) |>
-  ungroup()
-
-ggplot(jan_jul_data, aes(x = year, y = avg_tmax, color = factor(month))) +
-  geom_line() +
-  facet_wrap(~ month) +
+  group_by(year, month, id) |>
+  summarize(avg_tmax = mean(tmax, na.rm = TRUE), .groups = "drop") |>
+  mutate(month = factor(month, labels = c("January", "July"))) |>
+  ggplot(aes(x = year, y = avg_tmax, color = factor(year))) +
+  geom_boxplot() +
+  facet_grid(.~ month) +
   labs(
     title = "Average Max Temperature in January and July across Stations",
     x = "Year",
     y = "Average Max Temperature (°C)"
-  )
+  ) +
+  theme(legend.position = "none")
 ```
 
-There is a clear distinction between January and July temperatures, with January showing colder temperatures (often below freezing) and July exhibiting warmer temperatures (mostly above 20°C). There seems to be a slight warming trend in January temperatures over the years, which could be interpreted as part of the broader trend of global warming. This is less clear in the July data, which remains relatively stable.
+January shows lower average temperatures (often below freezing) and July shows higher average temperatures (mostly above 20°C). This is reasonable as January is in winter and July is in summer.
 
-January: As noted, there are some extreme cold outliers in the January panel, where the maximum temperatures drop significantly below 0°C. These outliers suggest that certain years had particularly severe cold snaps.
-July: A few years have notably lower maximum temperatures, likely representing cool or anomalous summers.
+There are some outliers (shown as dots) in the January panel, where the maximum temperatures drop significantly below 0°C. In July, there are notably lower maximum temperatures, likely representing cool summers.
 
-## (i)
+### (i) `tmax` vs `tmin` for the full dataset 
 
 ```{r message=FALSE, warning=FALSE}
 ggplot(ny_noaa_cleaned, aes(x = tmin, y = tmax)) +
@@ -68,21 +91,20 @@ ggplot(ny_noaa_cleaned, aes(x = tmin, y = tmax)) +
   )
 ```
 
-## (ii)
+### (ii) distribution of snowfall values greater than 0 and less than 100 separately by year
 
 ```{r}
-snowfall_dist <- ny_noaa_cleaned |>
+ny_noaa_cleaned |>
   filter(snow > 0, snow < 100) |>
   group_by(year) |>
-  summarize(avg_snow = mean(snow, na.rm = TRUE))
-
-ggplot(snowfall_dist, aes(x = year, y = avg_snow)) +
-  geom_col() +
+  ggplot(aes(x = factor(year), y = snow)) +
+  geom_violin() +
   labs(
-    title = "Average Snowfall Distribution by Year",
+    title = "Distribution of Snowfall (0 < Snow < 100 mm) by Year",
     x = "Year",
-    y = "Average Snowfall (mm)"
-  )
+    y = "Snowfall (mm)"
+  ) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
 
@@ -114,12 +136,11 @@ merged <- merge(demographic_cleaned, accel, by = "seqn")
 ## Produce a reader-friendly table for the number of men and women in each education category
 
 ```{r message=FALSE}
-gender_education_table <- merged |>
+sex_education_table <- merged |>
   group_by(education, sex) |>
-  summarise(Count = n()) |>
-  ungroup()
+  janitor::tabyl(education, sex)
 
-knitr::kable(gender_education_table)
+knitr::kable(sex_education_table)
 ```
 
 Less than high school: The number of participants is nearly balanced between males (27) and females (28).
@@ -150,25 +171,70 @@ More than high school: Participants are more evenly distributed across age group
 
 Males tend to have a slightly wider spread across age groups in all education levels, while females tend to peak more sharply in specific age ranges, particularly among the less educated. As education level increases, the age distribution becomes broader, indicating that participants with higher education levels are more evenly distributed across various age groups. Conversely, those with lower education levels tend to be older. This may suggest that older generations had less access to education compared to younger participants.
 
-## Create a total activity variable for each participant
+## Focus on total activity
 
 ```{r message=FALSE}
-merged$total_activity <- rowSums(merged[, grep("MIMS", colnames(merged))])
+merged <- merged |>
+  mutate(total_activity = rowSums(select(merged, starts_with("min"))))
 
 ggplot(merged, aes(x = age, y = total_activity, color = sex)) +
-  geom_point() +
-  geom_smooth(method = "lm", se = FALSE) +
-  facet_wrap(~ education) +
-  labs(title = "Total Activity vs Age by Gender and Education Level",
+  geom_point(alpha = 0.6) + 
+  geom_smooth(method = "loess", se = FALSE) +
+  facet_wrap(~ education) + 
+  labs(title = "Total Activity vs Age by Sex and Education Level",
        x = "Age",
        y = "Total Activity (MIMS)") +
-  theme_minimal()
-
+  theme_minimal() +
+  theme(legend.position = "right")
 ```
 
+Across all education levels, total activity tends to decline with age. This is most noticeable among participants older than 60, where both men and women show a sharp drop in total activity. For younger participants (around 20–40 years), activity levels appear more varied, particularly in the "High school equivalent" and "More than high school" groups. This could indicate a broader range of physical activity habits in younger individuals.
+
+High School Equivalent: Men and women have similar levels of activity, with a slight decline in total activity for both genders as they approach middle age. However, there are spikes in activity around ages 40-50 for females and a more consistent decline for males. 
+
+Less than High School: Women tend to have higher activity levels than men from age 20 to 50, but this changes after age 50, where both men and women show a steep drop-off in activity.
+
+Both of High School Equivalent and Less than High School groups show more pronounced variations in activity. Particularly, the "Less than high school" group exhibits a rapid decline in total activity as participants age, suggesting a possible correlation between lower education levels and reduced physical activity, especially in older age groups.
+
+More than High School: There is a slight fluctuation in activity for both men and women around middle age, but total activity tends to plateau or decline slightly after the age of 50. This group shows the most consistency in activity levels for both genders, with less variation in total activity across age groups. This suggests that participants with higher education levels may have more stable physical activity patterns.
+
+In all groups, there are notable outliers, particularly in younger age ranges, where some individuals have very high total activity levels compared to others. This might represent particularly active participants who engage in a lot of daily physical activity, potentially skewing the averages.
+
+Conclusions:
+Decline in Physical Activity with Age: Across all education levels, both men and women tend to reduce their physical activity as they age, especially after 50. This is consistent with well-documented trends in aging and decreased physical activity.
+
+Impact of Education: Higher education levels appear to be associated with more stable physical activity across the lifespan, particularly in the "More than high school" group.
+
+Gender: While gender differences are relatively modest, women in the "Less than high school" group maintain higher total activity levels than men until around age 50, when activity declines sharply for both.
+
+## Make a three-panel plot that shows the 24-hour activity time courses for each education level
+
+```{r}
+long_data <- merged |>
+  pivot_longer(cols = starts_with("min"),
+               names_to = "Time",
+               values_to = "Activity")
+
+ggplot(long_data, aes(x = as.numeric(gsub("min", "", Time)), y = Activity, color = sex)) +
+  geom_line(stat = "summary", fun = "mean") +
+  facet_wrap(~ education) +
+  labs(title = "24-hour Activity Time Courses by Education Level",
+       x = "Time of Day (minutes from midnight)",
+       y = "Average Activity (MIMS)") +
+  theme_minimal()
+```
+
+The participants, regardless of education level, tend to follow a daily pattern of higher activity in the morning and afternoon, with a drop during the night and a midday lull. This is consistent with typical daily schedules, work hours, and rest periods.
+
+Participants with higher education ("More than high school") have more consistent activity levels across the day, with smaller differences between men and women. This may reflect more regulated daily routines, possibly due to structured work environments or more regular exercise patterns.
+
+Those with "Less than high school" education tend to exhibit higher overall activity during peak times, which could indicate physically demanding jobs or less sedentary lifestyles. Women in this group, in particular, show more pronounced activity peaks, suggesting higher daily physical exertion.
 
 
+# Problem 3
 
+```{r}
 
+```
 
 
