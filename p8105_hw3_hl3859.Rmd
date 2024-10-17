@@ -110,20 +110,20 @@ ny_noaa_cleaned |>
 
 # Problem 2
 
-## Load, tidy, merge, and otherwise organize the data sets
+### Load, tidy, merge, and otherwise organize the data sets
 
 ```{r}
 library(tidyverse)
 library(ggplot2)
 
-demographic <- read.csv("nhanes_covar.csv", skip = 4) |>
+demographic <- read.csv("data/nhanes_covar.csv", na = c("NA", ",", ""), skip = 4) |>
   janitor::clean_names() |>
-  mutate(sex = recode(sex, `1` = "male", `2` = "female"),
-         education = recode(education, `1` = "Less than high school", 
-                            `2` = "High school equivalent", 
-                            `3` = "More than high school"))
+  mutate(sex = factor(case_when(sex == 1 ~ "male", sex == 2 ~ "female")),
+         education = factor(case_when(education == 1 ~ "Less than high school", 
+                                      education == 2 ~ "High school equivalent", 
+                                      education == 3 ~ "More than high school")))
 
-accel <- read.csv("nhanes_accel.csv") |>
+accel <- read.csv("data/nhanes_accel.csv", na = c("NA", ",", "")) |>
   janitor::clean_names()
 
 demographic_cleaned <- demographic |>
@@ -133,25 +133,20 @@ demographic_cleaned <- demographic |>
 merged <- merge(demographic_cleaned, accel, by = "seqn")
 ```
 
-## Produce a reader-friendly table for the number of men and women in each education category
+### Produce a reader-friendly table for the number of men and women in each education category
 
 ```{r message=FALSE}
-sex_education_table <- merged |>
+merged |>
   group_by(education, sex) |>
-  janitor::tabyl(education, sex)
-
-knitr::kable(sex_education_table)
+  janitor::tabyl(education, sex) |>
+  knitr::kable()
 ```
 
-Less than high school: The number of participants is nearly balanced between males (27) and females (28).
-
-High school equivalent: There is a slight gender imbalance with more males (35) than females (23).
-
-More than high school: Both males (56) and females (59) are well represented, showing a fairly even distribution across genders.
+For Less than high school, the number of participants is nearly balanced between males (27) and females (28). For High school equivalent, there is a slight gender imbalance with more males (35) than females (23). For More than high school, both males (56) and females (59) are well represented, showing a fairly even distribution across genders.
 
 In general, participants with "More than high school" education make up the largest group, followed by "High school equivalent," with "Less than high school" having the fewest participants. This reflects the general trend of higher educational attainment among the participants.
 
-## Create a visualization of the age distributions for men and women in each education category
+### Create a visualization of the age distributions for men and women in each education category
 
 ```{r}
 ggplot(merged, aes(x = age, fill = sex)) +
@@ -163,15 +158,15 @@ ggplot(merged, aes(x = age, fill = sex)) +
   theme_minimal()
 ```
 
-High school equivalent: Males and females show a similar age distribution, with a large concentration of participants between 40 and 60 years. There's a small divergence in older ages, with slightly more males in their early 40s and late 50s.
+For High school equivalent, males and females show a similar age distribution, with a large concentration of participants between 40 and 60 years. There is a small divergence in older ages, with slightly more males in their early 40s and late 50s.
 
-Less than high school: The age distribution skews older for both males and females. The peak for females is around 70 years, while for males, it's slightly lower, around 60. This could indicate that older participants tend to have lower education levels.
+For Less than high school, the age distribution skews older for both males and females. The peak for females is around 70 years, while for males, it is slightly lower, around 60. This could indicate that older participants tend to have lower education levels.
 
-More than high school: Participants are more evenly distributed across age groups for both genders, with more participants in their 50s and 60s. Females tend to dominate the older age group (70+), while males are more evenly spread across age ranges.
+For More than high school, participants are more evenly distributed across age groups for both genders, with more participants in their 50s and 60s. Females tend to dominate the older age group (70+), while males are more evenly spread across age ranges.
 
 Males tend to have a slightly wider spread across age groups in all education levels, while females tend to peak more sharply in specific age ranges, particularly among the less educated. As education level increases, the age distribution becomes broader, indicating that participants with higher education levels are more evenly distributed across various age groups. Conversely, those with lower education levels tend to be older. This may suggest that older generations had less access to education compared to younger participants.
 
-## Focus on total activity
+### Focus on total activity
 
 ```{r message=FALSE}
 merged <- merged |>
@@ -188,34 +183,24 @@ ggplot(merged, aes(x = age, y = total_activity, color = sex)) +
   theme(legend.position = "right")
 ```
 
-Across all education levels, total activity tends to decline with age. This is most noticeable among participants older than 60, where both men and women show a sharp drop in total activity. For younger participants (around 20–40 years), activity levels appear more varied, particularly in the "High school equivalent" and "More than high school" groups. This could indicate a broader range of physical activity habits in younger individuals.
+Across all education levels, total activity tends to decline with age. This is most noticeable among participants older than 60, where both males and females show a sharp drop in total activity. For younger participants (around 20–40 years), activity levels appear more varied, particularly in the "High school equivalent" and "More than high school" groups. This could indicate a broader range of physical activity habits in younger individuals.
 
-High School Equivalent: Men and women have similar levels of activity, with a slight decline in total activity for both genders as they approach middle age. However, there are spikes in activity around ages 40-50 for females and a more consistent decline for males. 
+For High School Equivalent, males and females have similar levels of activity, with a slight decline in total activity for both genders as they approach middle age. However, there are spikes in activity around ages 40-50 for females and a more consistent decline for males. 
 
-Less than High School: Women tend to have higher activity levels than men from age 20 to 50, but this changes after age 50, where both men and women show a steep drop-off in activity.
+For Less than High School, females tend to have higher activity levels than males from age 20 to 50, but this changes after age 50, where both males and females show a steep drop-off in activity. 
 
-Both of High School Equivalent and Less than High School groups show more pronounced variations in activity. Particularly, the "Less than high school" group exhibits a rapid decline in total activity as participants age, suggesting a possible correlation between lower education levels and reduced physical activity, especially in older age groups.
+For More than High School, there is a slight fluctuation in activity for both males and females around middle age, but total activity tends to plateau or decline slightly after the age of 50. This group shows the most consistency in activity levels for both genders, with less variation in total activity across age groups. This suggests that participants with higher education levels may have more stable physical activity patterns.
 
-More than High School: There is a slight fluctuation in activity for both men and women around middle age, but total activity tends to plateau or decline slightly after the age of 50. This group shows the most consistency in activity levels for both genders, with less variation in total activity across age groups. This suggests that participants with higher education levels may have more stable physical activity patterns.
+In all groups, there are notable outliers, particularly in younger age ranges, where some individuals have very high total activity levels compared to others.
 
-In all groups, there are notable outliers, particularly in younger age ranges, where some individuals have very high total activity levels compared to others. This might represent particularly active participants who engage in a lot of daily physical activity, potentially skewing the averages.
-
-Conclusions:
-Decline in Physical Activity with Age: Across all education levels, both men and women tend to reduce their physical activity as they age, especially after 50. This is consistent with well-documented trends in aging and decreased physical activity.
-
-Impact of Education: Higher education levels appear to be associated with more stable physical activity across the lifespan, particularly in the "More than high school" group.
-
-Gender: While gender differences are relatively modest, women in the "Less than high school" group maintain higher total activity levels than men until around age 50, when activity declines sharply for both.
-
-## Make a three-panel plot that shows the 24-hour activity time courses for each education level
+### Make a three-panel plot that shows the 24-hour activity time courses for each education level
 
 ```{r}
-long_data <- merged |>
+merged |>
   pivot_longer(cols = starts_with("min"),
                names_to = "Time",
-               values_to = "Activity")
-
-ggplot(long_data, aes(x = as.numeric(gsub("min", "", Time)), y = Activity, color = sex)) +
+               values_to = "Activity") |>
+  ggplot(aes(x = as.numeric(gsub("min", "", Time)), y = Activity, color = sex)) +
   geom_line(stat = "summary", fun = "mean") +
   facet_wrap(~ education) +
   labs(title = "24-hour Activity Time Courses by Education Level",
